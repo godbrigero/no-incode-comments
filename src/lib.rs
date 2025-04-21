@@ -3,7 +3,7 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{Expr, ItemFn, Lit, Meta, parse_macro_input};
+use syn::{Expr, Item, ItemFn, ItemStruct, Lit, Meta, parse_macro_input};
 
 use std::fs;
 
@@ -46,7 +46,7 @@ impl Parse for ExternalDocArgs {
 #[proc_macro_attribute]
 pub fn external_doc(attr: TokenStream, item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attr as ExternalDocArgs).args;
-    let input_fn = parse_macro_input!(item as ItemFn);
+    let input = parse_macro_input!(item as Item);
 
     let mut doc_path = None;
     let mut doc_key = None;
@@ -99,16 +99,27 @@ pub fn external_doc(attr: TokenStream, item: TokenStream) -> TokenStream {
     let doc_comment = docs_map
         .get(&doc_key)
         .map(String::as_str)
-        .unwrap_or("No documentation found for key.");
+        .unwrap_or("No documentation found for item.");
 
     let doc_lines: Vec<_> = doc_comment
         .lines()
         .map(|line| quote! { #[doc = #line] })
         .collect();
 
-    let output = quote! {
-        #(#doc_lines)*
-        #input_fn
+    let output = match input {
+        Item::Fn(item_fn) => {
+            quote! {
+                #(#doc_lines)*
+                #item_fn
+            }
+        }
+        Item::Struct(item_struct) => {
+            quote! {
+                #(#doc_lines)*
+                #item_struct
+            }
+        }
+        _ => panic!("#[external_doc] can only be applied to functions or structs"),
     };
 
     output.into()
