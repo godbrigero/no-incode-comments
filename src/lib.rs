@@ -3,8 +3,9 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{Expr, Item, ItemFn, ItemStruct, Lit, Meta, parse_macro_input};
+use syn::{parse_macro_input, Expr, Item, ItemFn, ItemStruct, Lit, Meta};
 
+use std::collections::HashMap;
 use std::fs;
 
 /// A proc macro that imports documentation from an external markdown file.
@@ -74,32 +75,36 @@ pub fn external_doc(attr: TokenStream, item: TokenStream) -> TokenStream {
     let doc_path = doc_path.expect("Must specify Markdown path");
     let doc_key = doc_key.expect("Must specify key");
 
-    let markdown = fs::read_to_string(&doc_path).expect("Failed to read .md file");
+    let markdown = fs::read_to_string(&doc_path);
 
-    // Parse markdown: simple header-to-section map
-    let mut docs_map = std::collections::HashMap::new();
-    let mut current_key = String::new();
-    let mut current_lines = Vec::new();
+    let doc_comment = if !markdown.is_err() {
+        let mut docs_map = HashMap::new();
+        let mut current_key = String::new();
+        let mut current_lines = Vec::new();
 
-    for line in markdown.lines() {
-        if let Some(stripped) = line.strip_prefix("# ") {
-            if !current_key.is_empty() {
-                docs_map.insert(current_key.clone(), current_lines.join("\n"));
+        for line in markdown.unwrap().lines() {
+            if let Some(stripped) = line.strip_prefix("# ") {
+                if !current_key.is_empty() {
+                    docs_map.insert(current_key.clone(), current_lines.join("\n"));
+                }
+                current_key = stripped.trim().to_string();
+                current_lines = Vec::new();
+            } else if !current_key.is_empty() {
+                current_lines.push(line.trim_end().to_string());
             }
-            current_key = stripped.trim().to_string();
-            current_lines = Vec::new();
-        } else if !current_key.is_empty() {
-            current_lines.push(line.trim_end().to_string());
         }
-    }
-    if !current_key.is_empty() {
-        docs_map.insert(current_key.clone(), current_lines.join("\n"));
-    }
+        if !current_key.is_empty() {
+            docs_map.insert(current_key.clone(), current_lines.join("\n"));
+        }
 
-    let doc_comment = docs_map
-        .get(&doc_key)
-        .map(String::as_str)
-        .unwrap_or("No documentation found for item.");
+        docs_map
+            .get(&doc_key)
+            .map(String::as_str)
+            .unwrap_or("No documentation found for item.")
+            .to_string()
+    } else {
+        "No documentation found for item.".to_string()
+    };
 
     let doc_lines: Vec<_> = doc_comment
         .lines()

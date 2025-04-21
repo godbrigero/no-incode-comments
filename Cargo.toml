@@ -1,14 +1,24 @@
 [package]
 name = "no-incode-comments"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+description = "A proc macro that removes in-code comments from the code"
+license = "MIT"
+authors = ["Denis Koterov <denis.koterov@gmail.com>"]
+repository = "https://github.com/godbrigero/no-incode-comments"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-pulldown-cmark = "0.13.0"
-syn = { version = "2", features = ["full", "extra-traits", "parsing"] }
-quote = "1"
-proc-macro2 = "1"
-toml = "0.8"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
+
+[[example]]
+name = "function_example"
+path = "examples/function_example.rs"
+
+[[example]]
+name = "struct_example"
+path = "examples/struct_example.rs"
